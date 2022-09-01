@@ -71,35 +71,30 @@ async def get_payment_amount(message: types.Message, state: FSMContext):
 # проверка платежа по id
 @dp.callback_query_handler(Text(startswith='checkPay_'))
 async def check_pay(callback : types.CallbackQuery):
-    # try:
-    #     bill = callback.data.split('_')[1]
-    #     if dbpayments.checkPaymentById(bill) == 1:
-    #         # Проверим статус выставленного счета через его bill_id
-    #         print(await p2p.check(bill_id=bill).status)
-    #     else:
-    #         await bot.send_message(callback.from_user.id, 'Платеж не найден')
-    # except:
-    #     await bot.send_message(callback.from_user.id, 'Возникла какая-то ошибка, попробуйте повторить команду /start')
-    #     await callback.answer()
-    bill = callback.data.split('_')[1]
-    if dbpayments.checkPaymentById(bill) == 1:
-        # Проверим статус выставленного счета через его bill_id
-        if p2p.check(bill_id=bill).status == "PAID":
-            usersBalance = dbusers.getUsersCheckByTgId(callback.from_user.id)
-            paymentAmount = dbpayments.getPaymentAmountByBillId(bill)
-            newBalance = int(usersBalance) + int(paymentAmount)
-            dbusers.updtUsersBalance(newBalance, callback.from_user.id)
-            await bot.send_message(callback.from_user.id, 'Баланс пополнен')
-        elif p2p.check(bill_id=bill).status == "WAITING":
-            # инлайн кнопки со ссылкой для оплаты и проверкой оплаты
-            forUserPayButton = InlineKeyboardMarkup(row_width=1)
-            forUserPayButton.\
-            add(InlineKeyboardButton(text='Проверить статус платежа', callback_data='checkPay_' + bill))
-            await bot.send_message(callback.from_user.id, 'Ожидает оплаты', reply_markup=forUserPayButton)
-        elif p2p.check(bill_id=bill).status == "EXPIRED":
-            await bot.send_message(callback.from_user.id, 'Платеж просрочен', reply_markup=paymentAmount_kb)
-    else:
-        await bot.send_message(callback.from_user.id, 'Платеж не найден')
+    try:
+        bill = callback.data.split('_')[1]
+        if dbpayments.checkPaymentById(bill) == 1:
+            # Проверим статус выставленного счета через его bill_id
+            if p2p.check(bill_id=bill).status == "PAID":
+                usersBalance = dbusers.getUsersCheckByTgId(callback.from_user.id)
+                paymentAmount = dbpayments.getPaymentAmountByBillId(bill)
+                newBalance = int(usersBalance) + int(paymentAmount)
+                dbusers.updtUsersBalance(newBalance, callback.from_user.id)
+                await bot.send_message(callback.from_user.id, 'Баланс пополнен')
+            elif p2p.check(bill_id=bill).status == "WAITING":
+                # инлайн кнопки со ссылкой для оплаты и проверкой оплаты
+                forUserPayButton = InlineKeyboardMarkup(row_width=1)
+                forUserPayButton.\
+                add(InlineKeyboardButton(text='Проверить статус платежа', callback_data='checkPay_' + bill))
+                await bot.send_message(callback.from_user.id, 'Ожидает оплаты', reply_markup=forUserPayButton)
+            elif p2p.check(bill_id=bill).status == "EXPIRED":
+                await bot.send_message(callback.from_user.id, 'Платеж просрочен', reply_markup=paymentAmount_kb)
+        else:
+            await bot.send_message(callback.from_user.id, 'Платеж не найден')
+    except:
+        await bot.send_message(callback.from_user.id, 'Возникла какая-то ошибка, попробуйте повторить команду /start')
+        await callback.answer()
+
 
 
 def register_handlers_client(dp : Dispatcher):
