@@ -4,10 +4,10 @@ import asyncio
 from handlers import mainhand, adminhand
 import logging
 
-# logging.basicConfig(level=logging.DEBUG)
-# logging.basicConfig(filename='warnings.log', level=logging.WARNING,
-#                     format='%(asctime)s')
-# logging.basicConfig(filename='errors.log', level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(filename='warnings.log', level=logging.WARNING,
+                    format='%(asctime)s')
+logging.basicConfig(filename='errors.log', level=logging.ERROR)
 
 async def on_startup(_):
     print('Бот вышел в онлайн')
