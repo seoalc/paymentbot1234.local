@@ -21,11 +21,14 @@ async def command_start(message : types.Message):
             dbusers.addNewUser(tg_id)
             forUserTxt = 'Привет, ' + tg_name + '\nЯ - бот для пополнения баланса.\nНажмите на кнопку, чтобы пополнить баланс\n'\
                             'Ваш текущий баланс 0'
+            await message.reply(forUserTxt, reply_markup=paymentAmount_kb)
         elif countUser == 1:
-            usersCheck = dbusers.getUsersCheckByTgId(tg_id)
-            forUserTxt = 'Привет, ' + tg_name + '\nЯ - бот для пополнения баланса.\nНажмите на кнопку, чтобы пополнить баланс\n'\
-                            'Ваш текущий баланс ' + str(usersCheck['user_check'])
-        await message.reply(forUserTxt, reply_markup=paymentAmount_kb)
+            blStatus = dbusers.getUsersBlockStatus(tg_id)
+            if blStatus == 0:
+                usersCheck = dbusers.getUsersCheckByTgId(tg_id)
+                forUserTxt = 'Привет, ' + tg_name + '\nЯ - бот для пополнения баланса.\nНажмите на кнопку, чтобы пополнить баланс\n'\
+                                'Ваш текущий баланс ' + str(usersCheck['user_check'])
+                await message.reply(forUserTxt, reply_markup=paymentAmount_kb)
     except:
         await message.reply('Возникла какая-то ошибка, попробуйте повторить команду /start')
 
@@ -35,38 +38,42 @@ class FSMNewpayamount(StatesGroup):
 
 @dp.callback_query_handler(text='getPaymentAmount')
 async def send_payment_amount(callback : types.CallbackQuery):
-    await FSMNewpayamount.payamount.set()
-    await bot.send_message(callback.from_user.id, 'Введите сумму платежа цифрами')
-    await callback.answer()
+    blStatus = dbusers.getUsersBlockStatus(tg_id)
+    if blStatus == 0:
+        await FSMNewpayamount.payamount.set()
+        await bot.send_message(callback.from_user.id, 'Введите сумму платежа цифрами')
+        await callback.answer()
 
 # ответ пользователя пишется в словать
 # @dp.message_handler(state=FSMNewpayamount.payamount)
 async def get_payment_amount(message: types.Message, state: FSMContext):
-    # генерация случайного id
-    randId = message.from_user.id + int(''.join([random.choice(list('123456789')) for x in range(12)]))
-    paymentMount = message.text
-    if paymentMount.isdigit() == True:
-        if int(paymentMount) >= 1:
-            async with state.proxy() as data:
-                data['tg_id'] = message.from_user.id
-                data['payamount'] = message.text
-                # Выставим счет на сумму, введенную пользователем, который будет работать 5 минут
-                new_bill = p2p.bill(bill_id=randId, amount=paymentMount, lifetime=5)
-                data['new_bill'] = new_bill.bill_id
-            await dbpayments.addNewPayment(state)
-            # applId = await dbusers.addNewApplicant(state)
-            await state.finish()
-            forUserPayText = 'Платеж на сумму ' + str(paymentMount) + ' создан.\nНужно подтвердить его'
-            # инлайн кнопки со ссылкой для оплаты и проверкой оплаты
-            forUserPayButton = InlineKeyboardMarkup(row_width=1)
-            forUserPayButton.\
-            add(InlineKeyboardButton(text='Ссылка для оплаты', url=p2p.check(bill_id=randId).pay_url)).\
-            add(InlineKeyboardButton(text='Проверить статус платежа', callback_data='checkPay_' + new_bill.bill_id))
-            await bot.send_message(message.from_user.id, forUserPayText, reply_markup=forUserPayButton)
+    blStatus = dbusers.getUsersBlockStatus(tg_id)
+    if blStatus == 0:
+        # генерация случайного id
+        randId = message.from_user.id + int(''.join([random.choice(list('123456789')) for x in range(12)]))
+        paymentMount = message.text
+        if paymentMount.isdigit() == True:
+            if int(paymentMount) >= 1:
+                async with state.proxy() as data:
+                    data['tg_id'] = message.from_user.id
+                    data['payamount'] = message.text
+                    # Выставим счет на сумму, введенную пользователем, который будет работать 5 минут
+                    new_bill = p2p.bill(bill_id=randId, amount=paymentMount, lifetime=5)
+                    data['new_bill'] = new_bill.bill_id
+                await dbpayments.addNewPayment(state)
+                # applId = await dbusers.addNewApplicant(state)
+                await state.finish()
+                forUserPayText = 'Платеж на сумму ' + str(paymentMount) + ' создан.\nНужно подтвердить его'
+                # инлайн кнопки со ссылкой для оплаты и проверкой оплаты
+                forUserPayButton = InlineKeyboardMarkup(row_width=1)
+                forUserPayButton.\
+                add(InlineKeyboardButton(text='Ссылка для оплаты', url=p2p.check(bill_id=randId).pay_url)).\
+                add(InlineKeyboardButton(text='Проверить статус платежа', callback_data='checkPay_' + new_bill.bill_id))
+                await bot.send_message(message.from_user.id, forUserPayText, reply_markup=forUserPayButton)
+            else:
+                await bot.send_message(message.from_user.id, 'Минимальная сумма пополнения 1 руб.')
         else:
-            await bot.send_message(message.from_user.id, 'Минимальная сумма пополнения 1 руб.')
-    else:
-        await bot.send_message(message.from_user.id, 'Введите целое число')
+            await bot.send_message(message.from_user.id, 'Введите целое число')
 
 # проверка платежа по id
 @dp.callback_query_handler(Text(startswith='checkPay_'))
